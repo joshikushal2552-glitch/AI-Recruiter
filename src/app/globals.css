@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* Force Tailwind v4 to recognize class-based dark mode toggles instead of system OS queries */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background-dark: #060612;
+  --color-background-light: #f8fafc;
+  --color-surface-dark: #0b0b1e;
+  --color-surface-light: #ffffff;
+  
+  --color-brand-purple: #9333ea;
+  --color-brand-pink: #ec4899;
+  --color-brand-cyan: #06b6d4;
+}
+
+@layer base {
+  :root {
+    --background: var(--color-background-light);
+    --foreground: #0f172a;
+    --border: #e2e8f0;
+  }
+
+  .dark {
+    --background: var(--color-background-dark);
+    --foreground: #f8fafc;
+    --border: #1a1a32;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark .glass-panel {
+  background: rgba(11, 11, 30, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
