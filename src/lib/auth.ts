@@ -5,7 +5,6 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import db from '@/lib/db'
 
 const isProduction = process.env.NODE_ENV === 'production'
-const baseUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 const googleClientId = process.env.AUTH_GOOGLE_ID
 const googleClientSecret = process.env.AUTH_GOOGLE_SECRET
 
@@ -131,5 +130,3 @@ export const authOptions: NextAuthOptions = {
   },
   debug: !isProduction,
 }
-
-export const authBaseUrl = baseUrl
