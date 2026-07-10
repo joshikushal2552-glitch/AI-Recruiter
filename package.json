@@ -17,7 +17,7 @@
     "ai": "^4.3.0",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.5",
-    "framer-motion": "^11.15.0",
+    "framer-motion": "^11.18.2",
     "lucide-react": "^0.454.0",
     "next": "^15.1.0",
     "next-auth": "^4.24.11",
