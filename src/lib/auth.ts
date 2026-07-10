@@ -4,12 +4,21 @@ import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import db from '@/lib/db'
 
+const isProduction = process.env.NODE_ENV === 'production'
+const baseUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+const googleClientId = process.env.AUTH_GOOGLE_ID
+const googleClientSecret = process.env.AUTH_GOOGLE_SECRET
+
+const googleProvider = googleClientId && googleClientSecret
+  ? GoogleProvider({
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+    })
+  : null
+
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.AUTH_GOOGLE_ID || '',
-      clientSecret: process.env.AUTH_GOOGLE_SECRET || '',
-    }),
+    ...(googleProvider ? [googleProvider] : []),
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
@@ -21,47 +30,57 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Missing input credentials fields.')
         }
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email }
-        })
+        try {
+          const user = await db.user.findUnique({
+            where: { email: credentials.email }
+          })
 
-        if (!user || !user.password) {
-          throw new Error('Invalid account user or target password profile matrix.')
-        }
+          if (!user || !user.password) {
+            throw new Error('Invalid account user or target password profile matrix.')
+          }
 
-        const isValid = user.password === credentials.password
+          const isValid = user.password === credentials.password
 
-        if (!isValid) {
-          throw new Error('Access denied. Invalid password.')
-        }
+          if (!isValid) {
+            throw new Error('Access denied. Invalid password.')
+          }
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image
+          }
+        } catch (error) {
+          console.error('Credentials auth failed:', error)
+          throw new Error('Database connection failed or credentials could not be verified.')
         }
       }
     })
   ],
   callbacks: {
-    async signIn({ user, account }: { user: AuthUser; account: Account | null }) {
+    async signIn({ user }: { user: AuthUser }) {
       if (!user.email) return false
 
-      const existingUser = await db.user.findUnique({
-        where: { email: user.email }
-      })
-
-      if (!existingUser) {
-        await db.user.create({
-          data: {
-            email: user.email,
-            name: user.name || '',
-            image: user.image || '',
-          }
+      try {
+        const existingUser = await db.user.findUnique({
+          where: { email: user.email }
         })
+
+        if (!existingUser) {
+          await db.user.create({
+            data: {
+              email: user.email,
+              name: user.name || '',
+              image: user.image || '',
+            }
+          })
+        }
+        return true
+      } catch (error) {
+        console.error('Auth database sync failed:', error)
+        return false
       }
-      return true
     },
     async session({ session, token }: { session: any; token: JWT }) {
       if (session.user && token.sub) {
@@ -83,5 +102,34 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt'
   },
-  secret: process.env.AUTH_SECRET,
+  secret: process.env.AUTH_SECRET || 'development-secret',
+  useSecureCookies: isProduction,
+  logger: {
+    error(code, metadata) {
+      console.error('NextAuth error:', code, metadata)
+    },
+    warn(code) {
+      console.warn('NextAuth warning:', code)
+    },
+    debug(code, metadata) {
+      console.debug('NextAuth debug:', code, metadata)
+    },
+  },
+  cookies: {
+    sessionToken: {
+      name: `${isProduction ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: isProduction,
+      },
+    },
+  },
+  theme: {
+    colorScheme: 'auto',
+  },
+  debug: !isProduction,
 }
+
+export const authBaseUrl = baseUrl

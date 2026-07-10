@@ -27,7 +27,10 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Authentication failure: Invalid token phrase matching matrix.')
+        const message = result.error === 'Configuration'
+          ? 'Google authentication is not fully configured yet. Add your Google OAuth credentials and the correct redirect URL.'
+          : 'Authentication failure: Invalid token phrase matching matrix.'
+        setError(message)
       } else {
         router.push('/dashboard')
         router.refresh()
