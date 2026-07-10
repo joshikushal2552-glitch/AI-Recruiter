@@ -304,7 +304,7 @@ export default function LandingPage() {
             <div className="lg:col-span-5 space-y-4">
               <h2 className="text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">Built around real career decisions.</h2>
               <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm md:text-base">
-                Whether you're applying for internships, your first full-time role, or planning your next career move, Get Placed provides clarity when it matters most.
+                Whether you&apos;re applying for internships, your first full-time role, or planning your next career move, Get Placed provides clarity when it matters most.
               </p>
             </div>
             
@@ -356,7 +356,7 @@ export default function LandingPage() {
               ].map((item, idx) => (
                 <div key={idx} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
                   <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed italic mb-6">
-                    "{item.quote}"
+                    &quot;{item.quote}&quot;
                   </p>
                   <div className="flex items-center gap-1 text-amber-500">
                     {[...Array(5)].map((_, i) => (
