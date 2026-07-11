@@ -40,10 +40,14 @@ export async function POST(req: Request) {
       temperature: 0.6
     }) as { object: z.infer<typeof marketScrapeResponseSchema> }
 
+    // Every card links to the same general Indeed search for what the user
+    // actually searched — not a per-card link built from the AI's (fabricated,
+    // often overly-specific) individual job title, which just produced a
+    // different narrow search per card instead of one general one.
+    const sharedApplicationUrl = buildIndeedSearchUrl(title, searchLocation)
     const jobs = response.object.jobs.map((job) => ({
       ...job,
-      // Real, working search-results link — not a fabricated posting URL.
-      applicationUrl: buildIndeedSearchUrl(job.title, job.location || searchLocation),
+      applicationUrl: sharedApplicationUrl,
     }))
 
     return NextResponse.json({ jobs }, { status: 200 })
