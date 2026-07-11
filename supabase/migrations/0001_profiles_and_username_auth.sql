@@ -36,7 +36,10 @@ begin
     new.id,
     coalesce(
       new.raw_user_meta_data ->> 'username',
-      regexp_replace(split_part(new.email, '@', 1), '[^a-zA-Z0-9_]', '', 'g') || '_' || substr(new.id::text, 1, 6)
+      -- Derived from email for OAuth signups (e.g. Google), which supply no username.
+      -- Truncated to 13 raw chars *before* stripping so the "_" + 6-char id suffix
+      -- can never push the total past the 20-char check constraint below.
+      regexp_replace(substr(split_part(new.email, '@', 1), 1, 13), '[^a-zA-Z0-9_]', '', 'g') || '_' || substr(new.id::text, 1, 6)
     ),
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', ''),
     new.raw_user_meta_data ->> 'avatar_url'
