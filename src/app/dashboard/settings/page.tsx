@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@/hooks/use-user'
 import { useRouter } from 'next/navigation'
-import { User, Mail, CreditCard, Save, CheckCircle2, Loader2 } from 'lucide-react'
+import type { UserIdentity } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
+import { CreditCard, Save, CheckCircle2, Loader2, Chrome, Link2, Unlink } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -13,12 +15,63 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
 
+  const [identities, setIdentities] = useState<UserIdentity[] | null>(null)
+  const [identitiesLoading, setIdentitiesLoading] = useState(true)
+  const [connectionError, setConnectionError] = useState('')
+  const [connecting, setConnecting] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
+
   useEffect(() => {
     if (user) {
       setUsername((user.user_metadata?.username as string | undefined) || '')
       setEmail(user.email || '')
     }
   }, [user])
+
+  const refreshIdentities = useCallback(async () => {
+    if (!user) return
+    setIdentitiesLoading(true)
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.getUserIdentities()
+    if (!error) setIdentities(data.identities)
+    setIdentitiesLoading(false)
+  }, [user])
+
+  useEffect(() => {
+    refreshIdentities()
+  }, [refreshIdentities])
+
+  const googleIdentity = identities?.find((identity) => identity.provider === 'google')
+
+  const handleConnectGoogle = async () => {
+    setConnecting(true)
+    setConnectionError('')
+    const supabase = createClient()
+    const { error } = await supabase.auth.linkIdentity({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard/settings`,
+      },
+    })
+    if (error) {
+      setConnectionError(error.message)
+      setConnecting(false)
+    }
+  }
+
+  const handleDisconnectGoogle = async () => {
+    if (!googleIdentity) return
+    setDisconnecting(true)
+    setConnectionError('')
+    const supabase = createClient()
+    const { error } = await supabase.auth.unlinkIdentity(googleIdentity)
+    if (error) {
+      setConnectionError(error.message)
+    } else {
+      await refreshIdentities()
+    }
+    setDisconnecting(false)
+  }
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,33 +108,88 @@ export default function SettingsPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="bg-white dark:bg-[#0e0e24] border border-neutral-200 dark:border-neutral-800/60 rounded-2xl p-6 shadow-sm lg:col-span-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">Basic User Profile</h3>
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Display Username</label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-2 text-xs focus:outline-none text-neutral-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Email Coordinates</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-2 text-xs focus:outline-none text-neutral-900 dark:text-white"
-              />
-            </div>
-            <button type="submit" disabled={loading} className="w-full py-2 bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
-              {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save Changes
-            </button>
-          </form>
+        <div className="space-y-6 lg:col-span-1">
+          <div className="bg-white dark:bg-[#0e0e24] border border-neutral-200 dark:border-neutral-800/60 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">Basic User Profile</h3>
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Display Username</label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-2 text-xs focus:outline-none text-neutral-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Email Coordinates</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-2 text-xs focus:outline-none text-neutral-900 dark:text-white"
+                />
+              </div>
+              <button type="submit" disabled={loading} className="w-full py-2 bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
+                {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save Changes
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white dark:bg-[#0e0e24] border border-neutral-200 dark:border-neutral-800/60 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">Connected Accounts</h3>
+
+            {connectionError && (
+              <div className="text-[10px] font-semibold bg-red-500/10 text-red-500 border border-red-500/20 p-2.5 rounded-lg mb-3">
+                {connectionError}
+              </div>
+            )}
+
+            {identitiesLoading ? (
+              <div className="flex items-center gap-2 text-neutral-400 py-1">
+                <Loader2 size={14} className="animate-spin" />
+                <span className="text-[11px] font-medium">Loading connections...</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/40">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Chrome size={16} className="text-brand-cyan shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-neutral-950 dark:text-white">Google</p>
+                    <p className="text-[10px] text-neutral-400 truncate">
+                      {googleIdentity ? 'Connected' : 'Not connected'}
+                    </p>
+                  </div>
+                </div>
+
+                {googleIdentity ? (
+                  (identities?.length ?? 0) > 1 ? (
+                    <button
+                      onClick={handleDisconnectGoogle}
+                      disabled={disconnecting}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-wider text-red-500 hover:bg-red-500/5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {disconnecting ? <Loader2 size={11} className="animate-spin" /> : <Unlink size={11} />} Disconnect
+                    </button>
+                  ) : (
+                    <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 size={12} /> Connected
+                    </span>
+                  )
+                ) : (
+                  <button
+                    onClick={handleConnectGoogle}
+                    disabled={connecting}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-brand-cyan text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {connecting ? <Loader2 size={11} className="animate-spin" /> : <Link2 size={11} />} Connect
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="bg-white dark:bg-[#0e0e24] border border-neutral-200 dark:border-neutral-800/60 rounded-2xl p-6 shadow-sm lg:col-span-2">
