@@ -138,7 +138,7 @@ export default function JobSearchPage() {
                       <div className="text-lg font-black text-neutral-950 dark:text-white mt-1">{job.expectedSalaryUSD}</div>
                     </div>
                     <a href={job.applicationUrl} target="_blank" rel="noopener noreferrer" className="w-full text-center py-2 bg-brand-cyan text-white text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 rounded-xl hover:opacity-90">
-                      View Position Online <ArrowUpRight size={12} />
+                      See Openings on Indeed <ArrowUpRight size={12} />
                     </a>
                   </div>
                 </div>

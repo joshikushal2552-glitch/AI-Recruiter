@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { generateResilientObject } from '@/lib/ai'
+import { buildCourseSearchUrl } from '@/lib/external-links'
 import { z } from 'zod'
+
+const COURSE_PROVIDERS = ['Coursera', 'Udemy', 'edX', 'Pluralsight', 'LinkedIn Learning', 'Skillshare', 'DataCamp'] as const
 
 const courseScrapeResponseSchema = z.object({
   courses: z.array(z.object({
     title: z.string(),
-    provider: z.string(), // e.g. Coursera, edX, Udemy
+    provider: z.enum(COURSE_PROVIDERS),
     skillsCovered: z.array(z.string()),
     difficulty: z.string(),
-    estimatedHours: z.string(),
-    courseUrl: z.string()
+    estimatedHours: z.string()
   }))
 })
 
@@ -23,15 +25,10 @@ export async function POST(req: Request) {
 
     const pageIndex = offsetPage || 1
 
-    const systemPrompt = `You are an automated professional education advisor mapping curriculum logs. 
+    const systemPrompt = `You are an automated professional education advisor mapping curriculum logs.
     Analyze the provided target user career role, and return an array of 3 highly specialized online training courses designed to bridge skill gaps.
-    
-    CRITICAL DEEP LINKING RULE: Every 'courseUrl' must be an absolute external web path leading directly to a well-known course platform page. Format them exactly as:
-    - https://www.coursera.org/learn/[course-name-slug]
-    - https://www.udemy.com/course/[topic-slug-identifier]/
-    - https://www.edx.org/learn/[subject]/[course-title]
-    Do not output incomplete domains or hashtag placeholders.
-    
+    The 'provider' field must be one of: ${COURSE_PROVIDERS.join(', ')}.
+
     Pagination Page Context: ${pageIndex}. Provide an alternative distribution of courses for counters greater than 1.`
 
     const userPrompt = `Target Technical Track: ${targetRole} | Page Block Index: ${pageIndex}`
@@ -43,7 +40,14 @@ export async function POST(req: Request) {
       temperature: 0.5
     }) as { object: z.infer<typeof courseScrapeResponseSchema> }
 
-    return NextResponse.json({ courses: response.object.courses }, { status: 200 })
+    const courses = response.object.courses.map((course) => ({
+      ...course,
+      // Real, working search-results link for this topic on the provider's site —
+      // not a fabricated course slug.
+      courseUrl: buildCourseSearchUrl(course.provider, targetRole),
+    }))
+
+    return NextResponse.json({ courses }, { status: 200 })
   } catch (error) {
     console.error('Upskilling advisor node transmission failure tracked:', error)
     return NextResponse.json({ message: 'Internal program compilation allocation error.' }, { status: 500 })
