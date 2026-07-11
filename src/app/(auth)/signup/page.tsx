@@ -2,14 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Sparkles, Mail, Lock, User, ArrowLeft, Chrome, Loader2, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
 
 function SignupFormContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [username, setUsername] = useState('')
@@ -77,8 +76,9 @@ function SignupFormContent() {
       }
 
       if (data.session) {
-        router.push('/dashboard')
-        router.refresh()
+        // Hard navigation: guarantees middleware sees the freshly-set session
+        // cookie on this request instead of racing a soft client transition.
+        window.location.href = '/dashboard'
       } else {
         // Email confirmation is required before this account can sign in
         setConfirmationSent(true)
