@@ -2,8 +2,9 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useUser } from '@/hooks/use-user'
+import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LayoutDashboard, FileText, Briefcase, BarChart3, Settings, LogOut, Sparkles, User, Loader2, BookOpen } from 'lucide-react'
 
@@ -13,7 +14,15 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const { data: session, status } = useSession()
+  const router = useRouter()
+  const { user, status } = useUser()
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -24,9 +33,11 @@ export default function DashboardLayout({
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ]
 
+  const displayName = (user?.user_metadata?.username as string | undefined) || (user?.user_metadata?.full_name as string | undefined)
+
   const getUserInitial = () => {
-    if (session?.user?.name) return session.user.name[0].toUpperCase()
-    if (session?.user?.email) return session.user.email[0].toUpperCase()
+    if (displayName) return displayName[0].toUpperCase()
+    if (user?.email) return user.email[0].toUpperCase()
     return 'O'
   }
 
@@ -72,14 +83,14 @@ export default function DashboardLayout({
                 <Loader2 size={16} className="animate-spin text-neutral-400" />
                 <span className="text-[11px] text-neutral-400 font-medium">Resolving credentials...</span>
               </div>
-            ) : session?.user ? (
+            ) : user ? (
               <div className="flex items-center gap-3 p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/40 max-w-full overflow-hidden">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-purple to-brand-cyan text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
                   {getUserInitial()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-bold text-neutral-950 dark:text-white truncate">{session.user.name || 'Active Operator'}</h4>
-                  <p className="text-[10px] text-neutral-400 font-medium truncate">{session.user.email}</p>
+                  <h4 className="text-xs font-bold text-neutral-950 dark:text-white truncate">{displayName || 'Active Operator'}</h4>
+                  <p className="text-[10px] text-neutral-400 font-medium truncate">{user.email}</p>
                 </div>
               </div>
             ) : (
@@ -96,7 +107,7 @@ export default function DashboardLayout({
           </div>
 
           <button
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-red-500 dark:text-red-400 hover:bg-red-500/5 dark:hover:bg-red-500/10 transition-colors border-none bg-transparent cursor-pointer text-left"
           >
             <LogOut size={16} /> Disconnect Session
@@ -111,11 +122,11 @@ export default function DashboardLayout({
             <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">Automated Operator Space Node</span>
           </div>
           <div className="flex items-center gap-4">
-            {session?.user && (
+            {user && (
               <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/80">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                  Profile Auth: <span className="text-neutral-950 dark:text-white tracking-normal font-semibold lowercase">{session.user.email}</span>
+                  Profile Auth: <span className="text-neutral-950 dark:text-white tracking-normal font-semibold lowercase">{user.email}</span>
                 </span>
               </div>
             )}

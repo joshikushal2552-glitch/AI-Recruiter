@@ -1,17 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { useUser } from '@/hooks/use-user'
 import { useRouter } from 'next/navigation'
 import { User, Mail, CreditCard, Save, CheckCircle2, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const [username, setUsername] = useState(session?.user?.name || '')
-  const [email, setEmail] = useState(session?.user?.email || '')
+  const { user } = useUser()
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  useEffect(() => {
+    if (user) {
+      setUsername((user.user_metadata?.username as string | undefined) || '')
+      setEmail(user.email || '')
+    }
+  }, [user])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()

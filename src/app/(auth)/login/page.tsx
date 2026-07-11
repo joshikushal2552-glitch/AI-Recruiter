@@ -3,41 +3,50 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
-import { Sparkles, Mail, Lock, ArrowLeft, Chrome, Loader2 } from 'lucide-react'
+import { Sparkles, User, Lock, ArrowLeft, Chrome, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) return
+    if (!username || !password) return
     setLoading(true)
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        email: email.trim(),
-        password: password,
-        redirect: false,
+      const supabase = createClient()
+
+      const { data: email, error: lookupError } = await supabase.rpc('get_email_for_username', {
+        lookup_username: username.trim().toLowerCase(),
       })
 
-      if (result?.error) {
-        const message = result.error === 'Configuration'
-          ? 'Google authentication is not fully configured yet. Add your Google OAuth credentials and the correct redirect URL.'
-          : 'Authentication failure: Invalid token phrase matching matrix.'
-        setError(message)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+      if (lookupError || !email) {
+        setError('Invalid username or password.')
+        setLoading(false)
+        return
       }
-    } catch (err) {
-      setError('Critical channel interrupt occurred during verification.')
-    } finally {
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        setError('Invalid username or password.')
+        setLoading(false)
+        return
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch {
+      setError('Something went wrong. Please try again.')
       setLoading(false)
     }
   }
@@ -45,13 +54,23 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true)
     setError('')
-    await signIn('google', { callbackUrl: '/dashboard' })
+    const supabase = createClient()
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
+      },
+    })
+    if (oauthError) {
+      setError('Google sign-in is not fully configured yet.')
+      setLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-[#060612] flex flex-col justify-center items-center p-6 relative transition-colors duration-200">
       <div className="max-w-md w-full space-y-4 z-10">
-        
+
         <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-brand-purple dark:hover:text-brand-cyan transition-colors mb-2 select-none">
           <ArrowLeft size={14} /> Back to landing page
         </Link>
@@ -73,23 +92,23 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Email Matrix Address</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Username</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   disabled={loading}
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your_username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-purple text-neutral-900 dark:text-white placeholder-neutral-400 transition-colors disabled:opacity-50"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Password Access Vector</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block mb-1">Password</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                 <input
@@ -104,8 +123,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="w-full py-3 bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
@@ -119,12 +138,12 @@ export default function LoginPage() {
             <div className="h-[1px] bg-neutral-200 dark:bg-neutral-800/60 flex-1" />
           </div>
 
-          <button 
+          <button
             onClick={handleGoogleSignIn}
             disabled={loading}
             className="w-full py-2.5 border border-neutral-200 dark:border-neutral-800 hover:border-brand-cyan bg-white dark:bg-neutral-950 text-neutral-700 dark:text-neutral-300 text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            <Chrome size={14} className="text-brand-cyan" /> Sign in with Google Cloud Identity
+            <Chrome size={14} className="text-brand-cyan" /> Sign in with Google
           </button>
 
           <div className="text-center pt-2">
